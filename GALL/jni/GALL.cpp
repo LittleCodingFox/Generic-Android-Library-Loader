@@ -174,6 +174,11 @@ void ANativeActivity_onCreate(ANativeActivity* activity, void* savedState, size_
 		offset = dependenciesString.find("|", lastOffset);
 	}
 	
+	if(lastOffset == 0) 
+	{
+		dependencies.push_back(dependenciesString);
+	}
+	
 	for(int i = 0; i < dependencies.size(); i++)
 	{
 		loadLibrary(dependencies[i].c_str(), lJNIEnv, ObjectActivityInfo);
