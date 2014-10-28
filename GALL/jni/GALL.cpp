@@ -101,14 +101,19 @@ void* loadLibrary(const char* libraryName, JNIEnv* lJNIEnv, jobject& ObjectActiv
     jmethodID MethodGetPath = lJNIEnv->GetMethodID(ClassFile, "getPath", "()Ljava/lang/String;");
     jstring javaLibraryPath = static_cast<jstring>(lJNIEnv->CallObjectMethod(ObjectFile, MethodGetPath));
     const char* libraryPath = lJNIEnv->GetStringUTFChars(javaLibraryPath, NULL);
+	
+	LOGE("Loading %s ('%s')", libraryName, libraryPath);
 
     // Manually load the library
     void * handle = dlopen(libraryPath, RTLD_NOW | RTLD_GLOBAL);
+
     if (!handle)
     {
         LOGE("dlopen(\"%s\"): %s", libraryPath, dlerror());
         exit(1);
     }
+	
+	LOGE("Successfully loaded '%s'", libraryName);
 
     // Release the Java string
     lJNIEnv->ReleaseStringUTFChars(javaLibraryPath, libraryPath);
@@ -167,16 +172,20 @@ void ANativeActivity_onCreate(ANativeActivity* activity, void* savedState, size_
 	
 	while(offset != std::string::npos)
 	{
-		dependencies.push_back(dependenciesString.substr(lastOffset, offset));
+		dependencies.push_back(dependenciesString.substr(lastOffset, offset - lastOffset));
+
+		LOGE("Adding dependency '%s'", dependencies.back().c_str());
 		
 		lastOffset = offset + 1;
 		
 		offset = dependenciesString.find("|", lastOffset);
 	}
 	
-	if(lastOffset == 0) 
+	if(lastOffset == 0 || (offset == std::string::npos && lastOffset != dependenciesString.length() - 1))
 	{
-		dependencies.push_back(dependenciesString);
+		dependencies.push_back(dependenciesString.substr(lastOffset, dependenciesString.length() - lastOffset));
+
+		LOGE("Adding dependency '%s'", dependencies.back().c_str());
 	}
 	
 	for(int i = 0; i < dependencies.size(); i++)
@@ -185,6 +194,9 @@ void ANativeActivity_onCreate(ANativeActivity* activity, void* savedState, size_
 	}
 
     std::string libName = getMetadata(lJNIEnv, ObjectActivityInfo, "gall.target");
+	
+	LOGE("Loading Target '%s'", libName.c_str());
+	
     void* handle = loadLibrary(libName.c_str(), lJNIEnv, ObjectActivityInfo);
 
     // Call the original ANativeActivity_onCreate function
@@ -192,9 +204,11 @@ void ANativeActivity_onCreate(ANativeActivity* activity, void* savedState, size_
 
     if (!ANativeActivity_onCreate)
     {
-        LOGE("GALL: Undefined symbol ANativeActivity_onCreate");
+        LOGE("Undefined symbol ANativeActivity_onCreate");
         exit(1);
     }
+	
+	LOGE("Starting Target!");
 
     ANativeActivity_onCreate(activity, savedState, savedStateSize);
 }
